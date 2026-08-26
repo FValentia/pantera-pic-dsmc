@@ -4682,6 +4682,14 @@ MODULE fields
       CALL VecGetOwnershipRange( f, Istart, Iend, ierr)
 
       IF (DIMS == 1) THEN
+
+         !CHECK IF THE MASKING IS REQUIRED
+         DO IFLUID = 1, N_ELECTRON_FLUIDS
+            IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
+               CALL CREATE_MASK(IFLUID)
+            END IF
+         END DO
+
          DO IC = 1, NCELLS
             LENGTH = U1D_GRID%SEGMENT_LENGTHS(IC)
 
@@ -4718,12 +4726,13 @@ MODULE fields
 
                               VALUETOADD = VALUETOADD + &
                               QE*N0/(EPS0*EPS_SCALING**2)*LENGTH &
-                              *(1-QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1./2.)
+                              *(1-QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1./2.)&
+                              * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
 
                            ELSE
                               VALUETOADD = VALUETOADD + &
                               QE*N0/(EPS0*EPS_SCALING**2)*LENGTH &
-                              *EXP(QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0))
+                              *EXP(QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                            END IF
                         END DO
 
@@ -4741,6 +4750,14 @@ MODULE fields
             END DO
          END DO
       ELSE IF (DIMS == 2) THEN
+
+         !CHECK IF THE MASKING IS REQUIRED
+         DO IFLUID = 1, N_ELECTRON_FLUIDS
+            IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
+               CALL CREATE_MASK(IFLUID)
+            END IF
+         END DO
+
          DO IC = 1, NCELLS
             AREA = U2D_GRID%CELL_AREAS(IC)
 
@@ -4789,12 +4806,13 @@ MODULE fields
 
                               VALUETOADD = VALUETOADD + &
                               QE*N0/(EPS0*EPS_SCALING**2)*AREA &
-                              *(1-QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1./2.)
+                              *(1-QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1./2.)&
+                              * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
 
                            ELSE
                               VALUETOADD = VALUETOADD + &
                               QE*N0/(EPS0*EPS_SCALING**2)*AREA &
-                              *EXP(QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0))
+                              *EXP(QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                            END IF
                         END DO
 
@@ -4836,6 +4854,13 @@ MODULE fields
             END DO
          END DO
       ELSE IF (DIMS == 3) THEN
+
+          DO IFLUID = 1, N_ELECTRON_FLUIDS
+            IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
+               CALL CREATE_MASK(IFLUID)
+            END IF
+         END DO
+
          DO IC = 1, NCELLS
             VOLUME = U3D_GRID%CELL_VOLUMES(IC)
 
@@ -4873,12 +4898,13 @@ MODULE fields
 
                               VALUETOADD = VALUETOADD + &
                               QE*N0/(EPS0*EPS_SCALING**2)*VOLUME &
-                              *(1-QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1./2.)
+                              *(1-QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1./2.) &
+                              * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
 
                            ELSE
                               VALUETOADD = VALUETOADD + &
                               QE*N0/(EPS0*EPS_SCALING**2)*VOLUME &
-                              *EXP(QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0))
+                              *EXP(QE*(PHI_FIELD_NEW(VQ+1)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                            END IF
                         END DO
 
@@ -5261,9 +5287,10 @@ MODULE fields
                            FACTOR = SQRT(KAPPA-3./2.)*GAMMA(KAPPA-1.)/GAMMA(KAPPA-1./2.)
 
                            FLUX1 = FLUX1 + & 
-                                 CHARGE*FACTOR*(1-QE*(PHI_FIELD(V1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1.)
+                                 CHARGE*FACTOR*(1-QE*(PHI_FIELD(V1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1.)&
+                                 * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                         ELSE
-                           FLUX1 = FLUX1 + CHARGE*EXP(QE*(PHI_FIELD(V1)-PHI0)/(KB*T0))
+                           FLUX1 = FLUX1 + CHARGE*EXP(QE*(PHI_FIELD(V1)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                         END IF
                      END DO
 
@@ -5329,11 +5356,13 @@ MODULE fields
 
                            FACTOR = SQRT(KAPPA-3./2.)*GAMMA(KAPPA-1.)/GAMMA(KAPPA-1./2.)
 
-                           FLUX1 = FLUX1 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1.)
-                           FLUX2 = FLUX2 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V2)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1.)
+                           FLUX1 = FLUX1 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V1)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1.)&
+                           * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
+                           FLUX2 = FLUX2 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V2)-PHI0)/(KB*T0*(KAPPA-3./2.)))**(-KAPPA+1.)&
+                           * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                         ELSE
-                           FLUX1 = FLUX1 + CHARGE*EXP(QE*(PHI_FIELD(V1)-PHI0)/(KB*T0))
-                           FLUX2 = FLUX2 + CHARGE*EXP(QE*(PHI_FIELD(V2)-PHI0)/(KB*T0))
+                           FLUX1 = FLUX1 + CHARGE*EXP(QE*(PHI_FIELD(V1)-PHI0)/(KB*T0))* ELECTRON_FLUIDS(IFLUID)%MASK(IC)
+                           FLUX2 = FLUX2 + CHARGE*EXP(QE*(PHI_FIELD(V2)-PHI0)/(KB*T0))* ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                         END IF
                      END DO
 
@@ -5422,15 +5451,15 @@ MODULE fields
                            FACTOR = SQRT(KAPPA-3./2.)*GAMMA(KAPPA-1.)/GAMMA(KAPPA-1./2.)
 
                            FLUX1 = FLUX1 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V1)-PHI0)/(KB*T0*(KAPPA-3./2.)))&
-                           **(-KAPPA+1.)
+                           **(-KAPPA+1.) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                            FLUX2 = FLUX2 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V2)-PHI0)/(KB*T0*(KAPPA-3./2.)))&
-                           **(-KAPPA+1.)
+                           **(-KAPPA+1.) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                            FLUX3 = FLUX3 + CHARGE*FACTOR*(1-QE*(PHI_FIELD(V3)-PHI0)/(KB*T0*(KAPPA-3./2.)))&
-                           **(-KAPPA+1.)
+                           **(-KAPPA+1.) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                         ELSE
-                           FLUX1 = FLUX1 + CHARGE*EXP(QE*(PHI_FIELD(V1)-PHI0)/(KB*T0))
-                           FLUX2 = FLUX2 + CHARGE*EXP(QE*(PHI_FIELD(V2)-PHI0)/(KB*T0))
-                           FLUX3 = FLUX3 + CHARGE*EXP(QE*(PHI_FIELD(V3)-PHI0)/(KB*T0))
+                           FLUX1 = FLUX1 + CHARGE*EXP(QE*(PHI_FIELD(V1)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
+                           FLUX2 = FLUX2 + CHARGE*EXP(QE*(PHI_FIELD(V2)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
+                           FLUX3 = FLUX3 + CHARGE*EXP(QE*(PHI_FIELD(V3)-PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                         END IF
                      END DO
 
@@ -5484,10 +5513,10 @@ MODULE fields
                      IF (INT(ELECTRON_FLUIDS(IFLUID)%KAPPA_INDEX) /= 0) THEN
                         KAPPA = ELECTRON_FLUIDS(IFLUID)%KAPPA_INDEX
 
-                        RHO_FLUID(V) = N0*(1-QE*(PHI_FIELD(V) - PHI0)/(KB*T0*(KAPPA-3./2.)))&
-                        **(-KAPPA+1./2.)
+                        RHO_FLUID(V) = RHO_FLUID(V) + N0*(1-QE*(PHI_FIELD(V) - PHI0)/(KB*T0*(KAPPA-3./2.)))&
+                        **(-KAPPA+1./2.) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                      ELSE
-                        RHO_FLUID(V) = N0*EXP(QE*(PHI_FIELD(V) - PHI0)/(KB*T0))
+                        RHO_FLUID(V) = RHO_FLUID(V) + N0*EXP(QE*(PHI_FIELD(V) - PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                      END IF
                   END DO
                END DO
@@ -5507,10 +5536,10 @@ MODULE fields
                      IF (INT(ELECTRON_FLUIDS(IFLUID)%KAPPA_INDEX) /= 0) THEN
                         KAPPA = ELECTRON_FLUIDS(IFLUID)%KAPPA_INDEX
 
-                        RHO_FLUID(V) = N0*(1-QE*(PHI_FIELD(V) - PHI0)/(KB*T0*(KAPPA-3./2.)))&
-                        **(-KAPPA+1./2.)
+                        RHO_FLUID(V) = RHO_FLUID(V) + N0*(1-QE*(PHI_FIELD(V) - PHI0)/(KB*T0*(KAPPA-3./2.)))&
+                        **(-KAPPA+1./2.) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                      ELSE
-                        RHO_FLUID(V) = N0*EXP(QE*(PHI_FIELD(V) - PHI0)/(KB*T0))
+                        RHO_FLUID(V) =RHO_FLUID(V) + N0*EXP(QE*(PHI_FIELD(V) - PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                      END IF
                   END DO
                END DO
@@ -5529,10 +5558,10 @@ MODULE fields
                      IF (INT(ELECTRON_FLUIDS(IFLUID)%KAPPA_INDEX) /= 0) THEN
                         KAPPA = ELECTRON_FLUIDS(IFLUID)%KAPPA_INDEX
 
-                        RHO_FLUID(V) = N0*(1-QE*(PHI_FIELD(V) - PHI0)/(KB*T0*(KAPPA-3./2.)))&
-                        **(-KAPPA+1./2.)
+                        RHO_FLUID(V) = RHO_FLUID(V) + N0*(1-QE*(PHI_FIELD(V) - PHI0)/(KB*T0*(KAPPA-3./2.)))&
+                        **(-KAPPA+1./2.) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                      ELSE
-                        RHO_FLUID(V) = N0*EXP(QE*(PHI_FIELD(V) - PHI0)/(KB*T0))
+                        RHO_FLUID(V) = RHO_FLUID(V) + N0*EXP(QE*(PHI_FIELD(V) - PHI0)/(KB*T0)) * ELECTRON_FLUIDS(IFLUID)%MASK(IC)
                      END IF
                   END DO
                END DO
@@ -7100,5 +7129,58 @@ MODULE fields
       END DO
    END SUBROUTINE ASSIGN_CONDUCTIVE_PHI
 
+
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!Still missing the check if the particle is suitable for the masking!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   SUBROUTINE CREATE_MASK(IFLUID)
+
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: IFLUID
+      INTEGER :: PARTICLE_ID, INDEX
+      REAL(KIND=8), ALLOCATABLE :: DENSITY(:)
+
+      IF (.NOT. GRID_TYPE == UNSTRUCTURED) CALL ERROR_ABORT('Masking process implemented only for unstrctured grids !')
+
+      ALLOCATE(DENSITY(NCELLS))
+      DENSITY = 0.0
+
+      PARTICLE_ID = SPECIES_NAME_TO_ID(ELECTRON_FLUIDS(IFLUID)%MASKING_CRITERION_PARTICLE_NAME)
+      DO INDEX = 1, NP_PROC
+         IF (particles(INDEX)%S_ID == PARTICLE_ID) THEN
+            DENSITY(particles(INDEX)%IC) = DENSITY(particles(INDEX)%IC) + 1.d0
+         END IF
+      END DO
+      CALL MPI_ALLREDUCE(MPI_IN_PLACE, DENSITY, NCELLS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+      DENSITY = FNUM*SPECIES(PARTICLE_ID)%SPWT*DENSITY
+      IF (DIMS == 1) THEN
+         DENSITY = DENSITY/U1D_GRID%CELL_VOLUMES
+      ELSE IF (DIMS == 2) THEN
+         DENSITY = DENSITY/U2D_GRID%CELL_VOLUMES
+      ELSE 
+         DENSITY = DENSITY/U3D_GRID%CELL_VOLUMES
+      END IF
+      
+      IF (ELECTRON_FLUIDS(IFLUID)%MASKING_CRITERION_RELATION == 'GREATER_THAN')THEN
+         WHERE (DENSITY .GE. ELECTRON_FLUIDS(IFLUID)%MASKING_CRITERION_DENSITY)
+            ELECTRON_FLUIDS(IFLUID)%MASK(:) = 1
+         ELSEWHERE
+            ELECTRON_FLUIDS(IFLUID)%MASK(:) = 0
+         END WHERE
+      ELSE
+         WHERE (DENSITY .GE. ELECTRON_FLUIDS(IFLUID)%MASKING_CRITERION_DENSITY)
+            ELECTRON_FLUIDS(IFLUID)%MASK(:) = 0
+         ELSEWHERE
+            ELECTRON_FLUIDS(IFLUID)%MASK(:) = 1
+         END WHERE
+      END IF
+
+      DEALLOCATE(DENSITY)
+
+   END SUBROUTINE
 
 END MODULE fields
