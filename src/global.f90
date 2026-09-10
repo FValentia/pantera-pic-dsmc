@@ -38,6 +38,17 @@ MODULE global
    REAL(KIND=8) :: HP   = 6.62607015d-34                 ! https://physics.nist.gov/cgi-bin/cuu/Value?h
 
    REAL(KIND=8) :: EPS_SCALING = 1.d0
+   REAL(KIND=8) :: EPS_SCALING_ORIG = 1.d0
+
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! Local epsilon scaling !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: EPS_SCALING_LIST
+   LOGICAL :: LOCAL_EPSILON_SCALING = .FALSE.
+   CHARACTER*256 :: INTERPOLATION_TYPE
+   INTEGER :: SELECTED_FLUID_FOR_SCALING = -1
+
       
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! Particle variables and arrays !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -85,6 +96,7 @@ MODULE global
    INTEGER, DIMENSION(:), ALLOCATABLE :: CELL_PROCS
    INTEGER :: NCELLS, NNODES, NBOUNDCELLS, NBOUNDNODES
    REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: CELL_VOLUMES
+   REAL(KIND=8), DIMENSION(:,:), ALLOCATABLE :: CELL_CENTROIDS
 
 
    ENUM, BIND(C)

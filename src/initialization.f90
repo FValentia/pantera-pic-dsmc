@@ -198,7 +198,11 @@ MODULE initialization
          IF (line=='Checks_every:')            READ(in1,*) CHECKS_EVERY
          IF (line=='Stats_every:')             READ(in1,*) STATS_EVERY
          IF (line=='Timing_stats_every:')      READ(in1,*) TIMING_STATS_EVERY
-         IF (line=='Epsilon_scaling:')         READ(in1,*) EPS_SCALING
+         IF (line=='Epsilon_scaling:') THEN
+            READ(in1,*) EPS_SCALING
+            EPS_SCALING_ORIG = EPS_SCALING
+         END IF
+         
          IF (line=='PIC_type:') THEN
             READ(in1,*) PIC_TYPE_STRING
             IF (PIC_TYPE_STRING == "none") THEN
@@ -231,6 +235,12 @@ MODULE initialization
          IF (line=='Colocated_electrons:') THEN
             READ(in1,*) COLOCATED_ELECTRONS_TTRA
             COLOCATED_ELECTRONS = .TRUE.
+         END IF
+
+         ! ============ Local epsilon scaling options ============
+         IF (line == "Epsilon_smoothing:") THEN
+            READ(in1,*) SELECTED_FLUID_FOR_SCALING, INTERPOLATION_TYPE
+            LOCAL_EPSILON_SCALING = .TRUE.
          END IF
          
          ! ~~~~~~~~~~~~~  File output ~~~~~~~~~~~~~~~
@@ -1038,7 +1048,7 @@ MODULE initialization
          IF (ELECTRON_FLUIDS(N_ELECTRON_FLUIDS)%KAPPA_INDEX <= 1.5) THEN
             CALL ERROR_ABORT('Error in electron fluid definition. Kappa index must be > 1.5.')
          END IF
-      ELSE IF (N_STR .GE.5) THEN
+      ELSE IF (N_STR .GE. 5) THEN
          ELECTRON_FLUIDS(N_ELECTRON_FLUIDS)%MASKING = .TRUE.
          READ(STRARRAY(N_STR-2), '(A64)') ELECTRON_FLUIDS(N_ELECTRON_FLUIDS)%MASKING_CRITERION_PARTICLE_NAME
          IF (STRARRAY(N_STR-1) == 'GREATER_THAN' .OR. STRARRAY(N_STR-1) == 'LOWER_THAN') THEN 
@@ -1050,7 +1060,6 @@ MODULE initialization
       END IF
       ALLOCATE(ELECTRON_FLUIDS(N_ELECTRON_FLUIDS)%MASK(NCELLS))
       ELECTRON_FLUIDS(N_ELECTRON_FLUIDS)%MASK = 1
-
 
    END SUBROUTINE DEF_ELECTRON_FLUID
 

@@ -4681,16 +4681,23 @@ MODULE fields
 
       CALL VecGetOwnershipRange( f, Istart, Iend, ierr)
 
+      EPS_SCALING_ORIG = EPS_SCALING
+
+      ! CHECK IF THE MASKING IS REQUIRED
+      DO IFLUID = 1, N_ELECTRON_FLUIDS
+         IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
+            CALL CREATE_MASK(IFLUID)
+         END IF
+      END DO
+
+      ! CHECK IF SMOOTHING OF THE LOCAL EPSILON IS REQUIRED
+      IF (LOCAL_EPSILON_SCALING) CALL CREATE_LOCAL_EPSILON_SCALING_LIST(SELECTED_FLUID_FOR_SCALING)
+
       IF (DIMS == 1) THEN
 
-         !CHECK IF THE MASKING IS REQUIRED
-         DO IFLUID = 1, N_ELECTRON_FLUIDS
-            IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
-               CALL CREATE_MASK(IFLUID)
-            END IF
-         END DO
-
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
+            
             LENGTH = U1D_GRID%SEGMENT_LENGTHS(IC)
 
             IF (U1D_GRID%CELL_PG(IC) == -1) THEN
@@ -4750,15 +4757,8 @@ MODULE fields
             END DO
          END DO
       ELSE IF (DIMS == 2) THEN
-
-         !CHECK IF THE MASKING IS REQUIRED
-         DO IFLUID = 1, N_ELECTRON_FLUIDS
-            IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
-               CALL CREATE_MASK(IFLUID)
-            END IF
-         END DO
-
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
             AREA = U2D_GRID%CELL_AREAS(IC)
 
             IF (U2D_GRID%CELL_PG(IC) == -1) THEN
@@ -4854,14 +4854,10 @@ MODULE fields
             END DO
          END DO
       ELSE IF (DIMS == 3) THEN
-
-          DO IFLUID = 1, N_ELECTRON_FLUIDS
-            IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
-               CALL CREATE_MASK(IFLUID)
-            END IF
-         END DO
+         
 
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
             VOLUME = U3D_GRID%CELL_VOLUMES(IC)
 
             IF (U3D_GRID%CELL_PG(IC) == -1) THEN
@@ -4923,6 +4919,8 @@ MODULE fields
             END DO
          END DO 
       END IF
+
+      EPS_SCALING = EPS_SCALING_ORIG
 
       DO I = 0, NNODES-1
          IF (IS_DIRICHLET(I)) THEN
@@ -4994,10 +4992,21 @@ MODULE fields
 
       CALL MatGetOwnershipRange( jac, Istart, Iend, ierr)
 
+      ! CHECK IF THE MASKING IS REQUIRED
+      DO IFLUID = 1, N_ELECTRON_FLUIDS
+         IF (ELECTRON_FLUIDS(IFLUID)%MASKING) THEN
+            CALL CREATE_MASK(IFLUID)
+         END IF
+      END DO
+
+      ! CHECK IF SMOOTHING OF THE LOCAL EPSILON IS REQUIRED
+      IF (LOCAL_EPSILON_SCALING) CALL CREATE_LOCAL_EPSILON_SCALING_LIST(SELECTED_FLUID_FOR_SCALING)
+
       ! Accumulate Jacobian. All this is in principle not needed since we already have Amat.
 
       IF (DIMS == 1) THEN
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
             LENGTH = U1D_GRID%SEGMENT_LENGTHS(IC)
 
             IF (U1D_GRID%CELL_PG(IC) == -1) THEN
@@ -5058,6 +5067,7 @@ MODULE fields
          END DO
       ELSE IF (DIMS == 2) THEN
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
             AREA = U2D_GRID%CELL_AREAS(IC)
 
             IF (U2D_GRID%CELL_PG(IC) == -1) THEN
@@ -5154,6 +5164,7 @@ MODULE fields
          END DO
       ELSE IF (DIMS == 3) THEN
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
 
             VOLUME = U3D_GRID%CELL_VOLUMES(IC)
 
@@ -5219,6 +5230,8 @@ MODULE fields
          END DO
       END IF
 
+      EPS_SCALING = EPS_SCALING_ORIG
+
       CALL MatAssemblyBegin(jac, MAT_FLUSH_ASSEMBLY, ierr)
       CALL MatAssemblyEnd(jac, MAT_FLUSH_ASSEMBLY, ierr)
 
@@ -5259,9 +5272,12 @@ MODULE fields
       REAL(KIND=8), DIMENSION(3) :: FACE_NORMAL
       REAL(KIND=8) :: N1, E1, N2, E2
 
+
+
       IF (DIMS == 1) THEN
          DO IC = 1, NCELLS
             IF (CELL_PROCS(IC) == PROC_ID) THEN
+               IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
                DO IP = 1, 2
                   FACE_PG = U1D_GRID%CELL_EDGES_PG(IP, IC)
                   IF (FACE_PG == -1) CYCLE
@@ -5314,6 +5330,7 @@ MODULE fields
 
       ELSE IF (DIMS == 2) THEN
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
             IF (CELL_PROCS(IC) == PROC_ID) THEN
                DO IP = 1, 3
                   FACE_PG = U2D_GRID%CELL_EDGES_PG(IP, IC)
@@ -5403,6 +5420,7 @@ MODULE fields
 
       ELSE IF (DIMS == 3) THEN
          DO IC = 1, NCELLS
+            IF (LOCAL_EPSILON_SCALING) EPS_SCALING = EPS_SCALING_LIST(IC)
             IF (CELL_PROCS(IC) == PROC_ID) THEN
                DO IP=1, 4
                   FACE_PG = U3D_GRID%CELL_FACES_PG(IP, IC)
@@ -5485,6 +5503,7 @@ MODULE fields
             END IF
          END DO
       END IF
+      EPS_SCALING = EPS_SCALING_ORIG
 
    END SUBROUTINE FLUID_ELECTRONS_SURFACE_CHARGING
 
@@ -5857,7 +5876,7 @@ MODULE fields
       INTEGER :: EDGE_PG
       REAL(KIND=8) :: AREA
 
-      K = QE/(EPS0*EPS_SCALING**2) ! [V m] Elementary charge / Dielectric constant of vacuum
+      
 
       RHS = 0.d0
 
@@ -5868,6 +5887,12 @@ MODULE fields
 
          IF (GRID_TYPE == UNSTRUCTURED) THEN 
             IC = part_adv(JP)%IC
+            IF (LOCAL_EPSILON_SCALING) THEN
+               K = QE/(EPS0*EPS_SCALING_LIST(IC)**2) ! [V m] Elementary charge / Dielectric constant of vacuum
+            ELSE
+               K = QE/(EPS0*EPS_SCALING**2) ! [V m] Elementary charge / Dielectric constant of vacuum
+            END IF
+
             IF (DIMS == 1) THEN
                RHO_Q = K*CHARGE*FNUM*SPWT/(YMAX-YMIN)/(ZMAX-ZMIN)
                DO P = 1, 2
@@ -5901,6 +5926,7 @@ MODULE fields
             END IF
 
          ELSE
+            K = QE/(EPS0*EPS_SCALING**2) ! [V m] Elementary charge / Dielectric constant of vacuum
 
             CALL COMPUTE_WEIGHTS(JP, WEIGHTS, INDICES, INDI, INDJ)
 
@@ -7182,5 +7208,130 @@ MODULE fields
       DEALLOCATE(DENSITY)
 
    END SUBROUTINE
+
+   SUBROUTINE CREATE_LOCAL_EPSILON_SCALING_LIST(IFLUID)
+
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: IFLUID
+
+      INTEGER :: I, J, JNEIGH, NUM_INTERFACE_CELLS, COUNTER
+      REAL(KIND=8) :: A_COEFF, B_COEFF
+      REAL(KIND=8) :: SX, SY, SXY, SXX
+      REAL(KIND=8) :: XBAR, YBAR
+      REAL(KIND=8) :: DELTA_THETA, MIN_X, MIN_Y, X, Y, ANGLE, LINE_SLOPE_ANGLE, DELTA_ANGLE
+      LOGICAL, ALLOCATABLE :: IS_INTERFACE_CELL(:)
+      REAL(KIND=8), ALLOCATABLE :: CENTROIDS_X(:), CENTROIDS_Y(:)
+
+
+      WRITE(*,*) 'Epsilon smoothing function called'
+      IF (DIMS .NE. 2) CALL ERROR_ABORT('Smoothing of the epsilon scaling subroutine implemented only in 2D!')
+      IF (N_ELECTRON_FLUIDS .NE. 2) CALL ERROR_ABORT("Smoothing of the epsilon scaling available only with 2 fluids! ")
+
+
+      ALLOCATE(IS_INTERFACE_CELL(NCELLS))
+      IS_INTERFACE_CELL = .FALSE.
+
+      IF (.NOT. ALLOCATED(CELL_CENTROIDS)) THEN
+         CALL COMPUTE_CELL_CENTROIDS
+         ALLOCATE(EPS_SCALING_LIST(NCELLS))
+      END IF
+      
+      ! Searching for interface cells
+      DO I = 1, NCELLS
+         DO J = 1, 3
+            JNEIGH = U2D_GRID%CELL_NEIGHBORS(J, I)
+            IF (JNEIGH == -1) CYCLE   
+            IF (ELECTRON_FLUIDS(IFLUID)%MASK(JNEIGH) .NE. ELECTRON_FLUIDS(IFLUID)%MASK(I)) THEN
+               IS_INTERFACE_CELL(I) = .TRUE.
+               EXIT
+            END IF
+         END DO
+      END DO
+
+      NUM_INTERFACE_CELLS = COUNT(IS_INTERFACE_CELL)
+
+      ALLOCATE(CENTROIDS_X(NUM_INTERFACE_CELLS))
+      ALLOCATE(CENTROIDS_Y(NUM_INTERFACE_CELLS))
+      CENTROIDS_X = 0
+      CENTROIDS_Y = 0
+      COUNTER = 1
+
+      ! Getting cell's centroids of the interface cells
+      COUNTER = 1
+      DO I = 1, NCELLS
+         IF (IS_INTERFACE_CELL(I)) THEN
+            CENTROIDS_X(COUNTER) = CELL_CENTROIDS(1, I)
+            CENTROIDS_Y(COUNTER) = CELL_CENTROIDS(1, I)
+            COUNTER = COUNTER + 1
+         END IF
+      END DO
+
+      ! Finding the line minimising the Mean Square Error (MSE)
+      SX  = SUM(CENTROIDS_X)
+      SY  = SUM(CENTROIDS_Y)
+      SXY = SUM(CENTROIDS_X * CENTROIDS_Y)
+      SXX = SUM(CENTROIDS_X * CENTROIDS_X)
+
+      B_COEFF = (NUM_INTERFACE_CELLS*SXY - SX*SY) / (NUM_INTERFACE_CELLS*SXX - SX*SX)
+
+      XBAR = SX / NUM_INTERFACE_CELLS
+      YBAR = SY / NUM_INTERFACE_CELLS
+      A_COEFF = YBAR - B_COEFF*XBAR
+      MIN_X = MINVAL(CENTROIDS_X)
+      MIN_Y = A_COEFF + B_COEFF * MIN_X
+
+      ! Creation of the array with the local value of the epsilon scaling
+      IF (.NOT. ALLOCATED(EPS_SCALING_LIST)) ALLOCATE(EPS_SCALING_LIST(NCELLS))
+      EPS_SCALING_LIST = ELECTRON_FLUIDS(IFLUID)%MASK(JNEIGH) * EPS_SCALING
+
+      IF (INTERPOLATION_TYPE == 'none') THEN
+         DELTA_THETA = 10/180*PI ! angular extent of the smoothing
+         LINE_SLOPE_ANGLE = ATAN(B_COEFF)
+
+         DO I = 1, NCELLS
+            X = CELL_CENTROIDS(1, I)
+            Y = CELL_CENTROIDS(1, I)
+            IF (X == MIN_X .AND. Y == MIN_Y) CYCLE
+            ANGLE = ATAN2(Y - MIN_Y, X - MIN_X)
+            DELTA_ANGLE = ANGLE - LINE_SLOPE_ANGLE ! angle between the interpolation line and the line joining the cell centroid with the first point of the line
+
+            IF (DELTA_ANGLE < DELTA_THETA/2 .AND. DELTA_ANGLE > -DELTA_THETA/2) THEN ! if cell inside of the smoothing region
+               
+               IF (INTERPOLATION_TYPE == 'quadratic') THEN ! quadratic interpolation of EPS_SCALING^2
+                  EPS_SCALING_LIST(I) = EPS_SCALING - (EPS_SCALING - 1)/DELTA_THETA * (DELTA_ANGLE + DELTA_THETA/2) ! angular linear interpolation
+               ELSE IF (INTERPOLATION_TYPE == 'linear') THEN ! linear interpolation of EPS_SCALING^2
+                  EPS_SCALING_LIST(I) = EPS_SCALING - SQRT((EPS_SCALING - 1)/DELTA_THETA * (DELTA_ANGLE + DELTA_THETA/2)) ! angular linear interpolation
+               ELSE
+                  CALL ERROR_ABORT('Unsupported interpolation type for the epsilon scaling')
+               END IF
+            END IF
+         END DO
+      END IF
+
+   END SUBROUTINE CREATE_LOCAL_EPSILON_SCALING_LIST
+
+   SUBROUTINE COMPUTE_CELL_CENTROIDS
+      IMPLICIT NONE
+
+      INTEGER :: I
+      REAL(KIND=8) :: X, Y
+
+      IF (.NOT. ALLOCATED(CELL_CENTROIDS)) ALLOCATE(CELL_CENTROIDS(NCELLS, 2))
+
+      DO I = 1, NCELLS
+         X = (U2D_GRID%NODE_COORDS(1, U2D_GRID%CELL_NODES(1,I)) &
+               +  U2D_GRID%NODE_COORDS(1, U2D_GRID%CELL_NODES(2,I)) &
+               +  U2D_GRID%NODE_COORDS(1, U2D_GRID%CELL_NODES(3,I))) / 3.
+         
+         Y = (U2D_GRID%NODE_COORDS(2, U2D_GRID%CELL_NODES(1,I)) &
+               +  U2D_GRID%NODE_COORDS(2, U2D_GRID%CELL_NODES(2,I)) &
+               +  U2D_GRID%NODE_COORDS(2, U2D_GRID%CELL_NODES(3,I))) / 3.
+         
+         CELL_CENTROIDS(I, 1) = X
+         CELL_CENTROIDS(I, 2) = Y
+      END DO
+   END SUBROUTINE COMPUTE_CELL_CENTROIDS
+
 
 END MODULE fields
